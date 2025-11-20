@@ -1,0 +1,120 @@
+# ============================================================================
+# Customer Churn Prediction - Configuration
+# ============================================================================
+# This configuration file contains all parameters for the ML pipeline.
+# It separates configuration from code, making the pipeline reusable.
+
+# Project metadata
+project:
+  name: "Customer Churn Prediction"
+  version: "1.0.0"
+  description: "Telecommunications churn prediction ML pipeline"
+
+# Data paths and settings
+data:
+  train_path: "data/churn-bigml-80.csv"
+  test_path: "data/churn-bigml-20.csv"
+  target_column: "Churn"
+  
+  # Feature encoding configuration
+  encoding:
+    binary_columns:
+      - "International plan"
+      - "Voice mail plan"
+    onehot_columns:
+      - "State"
+      - "Area code"
+  
+  # Columns for outlier detection
+  outlier_columns:
+    - "Account length"
+    - "Total day minutes"
+    - "Total day calls"
+    - "Total day charge"
+    - "Total eve minutes"
+    - "Total eve calls"
+    - "Total eve charge"
+    - "Total night minutes"
+    - "Total night calls"
+    - "Total night charge"
+    - "Total intl minutes"
+    - "Total intl calls"
+    - "Total intl charge"
+
+# Model configuration
+model:
+  type: "xgboost"  # Options: xgboost, random_forest, gradient_boosting
+  random_state: 42
+  
+  # Hyperparameter optimization
+  optimization:
+    enabled: true
+    n_trials: 50
+    cv_folds: 5
+    scoring: "roc_auc"
+  
+  # Default hyperparameters (used when optimization is disabled)
+  default_params:
+    xgboost:
+      n_estimators: 200
+      learning_rate: 0.1
+      max_depth: 6
+      subsample: 0.8
+      colsample_bytree: 0.8
+    
+    random_forest:
+      n_estimators: 300
+      max_depth: 15
+      min_samples_split: 5
+      min_samples_leaf: 2
+    
+    gradient_boosting:
+      n_estimators: 200
+      learning_rate: 0.1
+      max_depth: 6
+      subsample: 0.8
+
+# Data processing settings
+preprocessing:
+  # Class balancing
+  balance_method: "smoteenn"  # Options: smote, smoteenn, adasyn, none
+  
+  # Feature scaling
+  scaler: "standard"  # Options: standard, minmax, robust
+  
+  # Feature selection
+  correlation_threshold: 0.95
+  
+  # Outlier detection
+  zscore_threshold: 3.0
+  iqr_multiplier: 1.5
+
+# Model persistence
+persistence:
+  models_dir: "models"
+  version_format: "v{version}"
+  save_artifacts: true
+  include_metadata: true
+
+# Logging and output
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  format: "detailed"
+  save_logs: false
+  log_dir: "logs"
+
+# Evaluation settings
+evaluation:
+  cv_folds: 5
+  cv_scoring: "roc_auc"
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "roc_auc"
+    - "log_loss"
+  
+  # Feature importance
+  top_features: 15
+  plot_results: false

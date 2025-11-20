@@ -37,7 +37,7 @@ np.random.seed(RANDOM_STATE)
 
 
 def load_data(
-    train_path: str = "churn-bigml-80.csv", test_path: str = "churn-bigml-20.csv"
+    train_path: str, test_path: str
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load training and test datasets from CSV files.
@@ -893,9 +893,12 @@ def predict_churn(
 
 
 def prepare_data(
-    train_path: str = "churn-bigml-80.csv",
-    test_path: str = "churn-bigml-20.csv",
-    target_col: str = "Churn",
+    train_path: str,
+    test_path: str,
+    target_col: str,
+    binary_cols: Optional[List[str]] = None,
+    onehot_cols: Optional[List[str]] = None,
+    outlier_cols: Optional[List[str]] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Dict[str, Any], List[str]]:
     """
     Complete data preparation pipeline.
@@ -904,6 +907,9 @@ def prepare_data(
         train_path: Path to training CSV
         test_path: Path to test CSV
         target_col: Target column name
+        binary_cols: Columns for binary encoding
+        onehot_cols: Columns for one-hot encoding
+        outlier_cols: Columns for outlier detection
 
     Returns:
         Tuple of (X_train_scaled, y_train, X_test_scaled, y_test, artifacts, feature_names)
@@ -918,25 +924,28 @@ def prepare_data(
     validate_data_quality(test_df, "Test")
 
     # 2. Encode categorical features
-    train_enc, test_enc, encoders = encode_categorical_features(train_df, test_df)
+    train_enc, test_enc, encoders = encode_categorical_features(
+        train_df, test_df, binary_cols=binary_cols, onehot_cols=onehot_cols
+    )
 
     # 3. Detect normality and remove outliers
-    outlier_columns = [
-        "Account length",
-        "Total day minutes",
-        "Total day calls",
-        "Total day charge",
-        "Total eve minutes",
-        "Total eve calls",
-        "Total eve charge",
-        "Total night minutes",
-        "Total night calls",
-        "Total night charge",
-        "Total intl minutes",
-        "Total intl calls",
-        "Total intl charge",
-    ]
-    normality_results = detect_normality(train_enc, outlier_columns)
+    if outlier_cols is None:
+        outlier_cols = [
+            "Account length",
+            "Total day minutes",
+            "Total day calls",
+            "Total day charge",
+            "Total eve minutes",
+            "Total eve calls",
+            "Total eve charge",
+            "Total night minutes",
+            "Total night calls",
+            "Total night charge",
+            "Total intl minutes",
+            "Total intl calls",
+            "Total intl charge",
+        ]
+    normality_results = detect_normality(train_enc, outlier_cols)
     train_clean, _ = remove_outliers_zscore(
         train_enc, normality_results["normal_columns"]
     )

@@ -4,6 +4,7 @@
 PYTHON=python
 ENV_NAME=venv
 REQUIREMENTS=requirements.txt
+CONFIG=config/config.yaml
 
 # ============================================================================
 # PHONY TARGETS (non-file targets)
@@ -21,7 +22,9 @@ help:
 	@echo "  make lint       - Vérification de la qualité du code"
 	@echo "  make security   - Analyse de sécurité du code"
 	@echo "  make data       - Préparation des données"
-	@echo "  make train      - Entraînement du modèle"
+	@echo "  make train      - Entraînement du modèle (avec config par défaut)"
+	@echo "  make train-dev  - Entraînement rapide (config développement)"
+	@echo "  make train-prod - Entraînement optimisé (config production)"
 	@echo "  make test       - Exécution des tests"
 	@echo "  make deploy     - Déploiement du modèle"
 	@echo "  make clean      - Nettoyage des fichiers temporaires"
@@ -87,14 +90,26 @@ security:
 # ============================================================================
 data:
 	@echo "Préparation des données..."
-	@$(PYTHON) -c "from model_pipeline import prepare_data; prepare_data('churn-bigml-80.csv', 'churn-bigml-20.csv')"
+	@$(PYTHON) main.py --prepare --config $(CONFIG)
 
 # ============================================================================
 # 4. Entraînement du modèle
 # ============================================================================
 train:
-	@echo "Entraînement du modèle..."
-	@$(PYTHON) main.py
+	@echo "Entraînement du modèle avec configuration par défaut..."
+	@$(PYTHON) main.py --config $(CONFIG)
+
+train-dev:
+	@echo "Entraînement rapide (mode développement)..."
+	@$(PYTHON) main.py --config config/config.dev.yaml
+
+train-prod:
+	@echo "Entraînement optimisé (mode production)..."
+	@$(PYTHON) main.py --config config/config.prod.yaml
+
+train-fast:
+	@echo "Entraînement rapide sans optimisation..."
+	@$(PYTHON) main.py --config $(CONFIG) --no-optimize
 
 # ============================================================================
 # 5. Tests unitaires

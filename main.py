@@ -4,6 +4,9 @@ from pathlib import Path
 
 import numpy as np
 
+# Import configuration loader
+from config_loader import Config, ConfigurationError, load_config
+
 # Import all pipeline functions
 from model_pipeline import (  # Data preparation; Model training; Evaluation; Persistence; Inference
     cross_validate_model, evaluate_model, extract_feature_importance,
@@ -11,17 +14,34 @@ from model_pipeline import (  # Data preparation; Model training; Evaluation; Pe
     save_model, train_model)
 
 
-def run_full_pipeline(
-    train_path: str = "churn-bigml-80.csv",
-    test_path: str = "churn-bigml-20.csv",
-    optimize: bool = True,
-    n_trials: int = 50,
-    model_type: str = "xgboost",
-):
+def run_full_pipeline(config: Config):
+    """
+    Execute complete ML pipeline with configuration.
+    
+    Args:
+        config: Configuration object with all pipeline settings
+    """
+    
+    # Extract configuration
+    data_config = config.get_data_config()
+    model_config = config.get_model_config()
+    preprocessing_config = config.get_preprocessing_config()
+    persistence_config = config.get_persistence_config()
+    evaluation_config = config.get_evaluation_config()
+    
+    train_path = data_config['train_path']
+    test_path = data_config['test_path']
+    target_col = data_config['target_column']
+    model_type = model_config['type']
+    optimize = model_config['optimization']['enabled']
+    n_trials = model_config['optimization']['n_trials']
 
     print("\n" + "=" * 70)
     print(" CUSTOMER CHURN PREDICTION - ML PIPELINE ".center(70))
     print("=" * 70)
+    
+    # Display configuration
+    config.display()
 
     # ========================================================================
     # STEP 1: DATA PREPARATION
@@ -30,7 +50,12 @@ def run_full_pipeline(
     print("-" * 70)
 
     X_train, y_train, X_test, y_test, artifacts, feature_names = prepare_data(
-        train_path=train_path, test_path=test_path
+        train_path=train_path,
+        test_path=test_path,
+        target_col=target_col,
+        binary_cols=data_config.get('encoding', {}).get('binary_columns'),
+        onehot_cols=data_config.get('encoding', {}).get('onehot_columns'),
+        outlier_cols=data_config.get('outlier_columns'),
     )
 
     # ========================================================================
@@ -52,22 +77,26 @@ def run_full_pipeline(
         for param, value in best_params.items():
             print(f"  {param}: {value}")
     else:
-        # Train with default parameters
-        if model_type == "xgboost":
-            params = {
-                "n_estimators": 200,
-                "learning_rate": 0.1,
-                "max_depth": 6,
-                "subsample": 0.8,
-                "colsample_bytree": 0.8,
-            }
-        else:
-            params = {
-                "n_estimators": 300,
-                "max_depth": 15,
-                "min_samples_split": 5,
-                "min_samples_leaf": 2,
-            }
+        # Train with default parameters from config
+        params = model_config.get('default_params', {}).get(model_type, {})
+        
+        if not params:
+            # Fallback defaults
+            if model_type == "xgboost":
+                params = {
+                    "n_estimators": 200,
+                    "learning_rate": 0.1,
+                    "max_depth": 6,
+                    "subsample": 0.8,
+                    "colsample_bytree": 0.8,
+                }
+            else:
+                params = {
+                    "n_estimators": 300,
+                    "max_depth": 15,
+                    "min_samples_split": 5,
+                    "min_samples_leaf": 2,
+                }
 
         model = train_model(X_train, y_train, model_type=model_type, **params)
         best_params = params
@@ -82,10 +111,15 @@ def run_full_pipeline(
     metrics = evaluate_model(model, X_test, y_test, model_name=model_type)
 
     # Cross-validation
-    cv_results = cross_validate_model(model, X_train, y_train, cv=5, scoring="roc_auc")
+    cv_folds = evaluation_config.get('cv_folds', 5)
+    cv_scoring = evaluation_config.get('cv_scoring', 'roc_auc')
+    cv_results = cross_validate_model(
+        model, X_train, y_train, cv=cv_folds, scoring=cv_scoring
+    )
 
     # Feature importance
-    importance_df = extract_feature_importance(model, feature_names, top_n=15)
+    top_n = evaluation_config.get('top_features', 15)
+    importance_df = extract_feature_importance(model, feature_names, top_n=top_n)
 
     # ========================================================================
     # STEP 4: MODEL PERSISTENCE
@@ -101,7 +135,12 @@ def run_full_pipeline(
         "n_features": len(feature_names),
         "training_samples": len(y_train),
         "test_samples": len(y_test),
+        "configuration": config.to_dict(),
     }
+    
+    models_dir = persistence_config.get('models_dir', './models')
+    version_format = persistence_config.get('version_format', 'v{version}')
+    version = version_format.format(version=config.get('project.version', '1.0'))
 
     saved_paths = save_model(
         model=model,
@@ -109,9 +148,9 @@ def run_full_pipeline(
         encoders=artifacts["encoders"],
         feature_names=feature_names,
         metadata=metadata,
-        output_dir="./models",
+        output_dir=models_dir,
         model_name="churn_model",
-        version="v1.0",
+        version=version,
     )
 
     # ========================================================================
@@ -164,23 +203,31 @@ def run_full_pipeline(
     # ========================================================================
 
 
-def run_prepare_only(train_path: str, test_path: str):
+def run_prepare_only(config: Config):
     """Run data preparation step only."""
     print("\n[DATA PREPARATION ONLY]")
+    
+    data_config = config.get_data_config()
+    
     X_train, y_train, X_test, y_test, artifacts, feature_names = prepare_data(
-        train_path=train_path, test_path=test_path
+        train_path=data_config['train_path'],
+        test_path=data_config['test_path'],
+        target_col=data_config['target_column'],
+        binary_cols=data_config.get('encoding', {}).get('binary_columns'),
+        onehot_cols=data_config.get('encoding', {}).get('onehot_columns'),
+        outlier_cols=data_config.get('outlier_columns'),
     )
     print(
         f"\n✓ Data prepared: {len(feature_names)} features, {len(y_train)} training samples"
     )
 
 
-def run_train_only(model_type: str, optimize: bool, n_trials: int):
+def run_train_only(config: Config):
     """Run training step only (requires preprocessed data)."""
     print("\n[MODEL TRAINING ONLY]")
     print("Note: This requires pre-saved training data. Run full pipeline first.")
 
-    # This is a simplified version - in production, you'd load saved preprocessed data
+    model_type = config.get('model.type')
     print(f"Training {model_type} model...")
     print("Use the full pipeline for end-to-end execution.")
 
@@ -258,24 +305,32 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run full pipeline with optimization
+  # Run with default configuration
   python main.py
   
-  # Run full pipeline without optimization (faster)
-  python main.py --no-optimize
+  # Use specific configuration file
+  python main.py --config config/config.prod.yaml
   
-  # Use Random Forest instead of XGBoost
-  python main.py --model random_forest
+  # Use development configuration
+  python main.py --config config/config.dev.yaml
+  
+  # Override specific settings
+  python main.py --config config/config.yaml --model random_forest --no-optimize
   
   # Only prepare data
   python main.py --prepare
   
-  # Only evaluate saved model
-  python main.py --evaluate
-  
-  # Run inference demo
+  # Run inference
   python main.py --predict
         """,
+    )
+
+    # Configuration file
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="config/config.yaml",
+        help="Path to configuration YAML file (default: config/config.yaml)",
     )
 
     # Pipeline control
@@ -290,78 +345,99 @@ Examples:
         "--predict", action="store_true", help="Run inference demonstration"
     )
 
-    # Data paths
+    # Configuration overrides (optional)
     parser.add_argument(
         "--train-data",
         type=str,
-        default="churn-bigml-80.csv",
-        help="Path to training data (default: churn-bigml-80.csv)",
+        help="Override training data path from config",
     )
     parser.add_argument(
         "--test-data",
         type=str,
-        default="churn-bigml-20.csv",
-        help="Path to test data (default: churn-bigml-20.csv)",
+        help="Override test data path from config",
     )
-
-    # Model configuration
     parser.add_argument(
         "--model",
         type=str,
         choices=["xgboost", "random_forest", "gradient_boosting"],
-        default="xgboost",
-        help="Model type to train (default: xgboost)",
+        help="Override model type from config",
     )
     parser.add_argument(
         "--optimize",
         dest="optimize",
         action="store_true",
-        default=True,
-        help="Run hyperparameter optimization (default: True)",
+        help="Enable hyperparameter optimization",
     )
     parser.add_argument(
         "--no-optimize",
         dest="optimize",
         action="store_false",
-        help="Skip hyperparameter optimization",
+        help="Disable hyperparameter optimization",
     )
     parser.add_argument(
         "--trials",
         type=int,
-        default=50,
-        help="Number of optimization trials (default: 50)",
+        help="Override number of optimization trials from config",
     )
 
     args = parser.parse_args()
 
-    # Validate data files exist if running full pipeline or prepare
-    if not (args.train or args.evaluate or args.predict):
-        if not Path(args.train_data).exists():
-            print(f"✗ Error: Training data not found: {args.train_data}")
+    # Load configuration
+    try:
+        print(f"\nLoading configuration from: {args.config}")
+        config = load_config(args.config)
+    except ConfigurationError as e:
+        print(f"\n✗ Configuration Error: {e}")
+        print("\nPlease ensure you have a valid configuration file.")
+        print("You can create one using the provided templates in config/")
+        sys.exit(1)
+
+    # Apply CLI overrides to configuration
+    if args.train_data:
+        config.data['data']['train_path'] = args.train_data
+        print(f"Override: Using training data from {args.train_data}")
+    
+    if args.test_data:
+        config.data['data']['test_path'] = args.test_data
+        print(f"Override: Using test data from {args.test_data}")
+    
+    if args.model:
+        config.data['model']['type'] = args.model
+        print(f"Override: Using model type {args.model}")
+    
+    if args.optimize is not None:
+        config.data['model']['optimization']['enabled'] = args.optimize
+        print(f"Override: Optimization {'enabled' if args.optimize else 'disabled'}")
+    
+    if args.trials:
+        config.data['model']['optimization']['n_trials'] = args.trials
+        print(f"Override: Using {args.trials} optimization trials")
+
+    # Validate data files exist if running operations that need them
+    if not (args.evaluate or args.predict):
+        train_path = config.get('data.train_path')
+        test_path = config.get('data.test_path')
+        
+        if not Path(train_path).exists():
+            print(f"✗ Error: Training data not found: {train_path}")
             sys.exit(1)
-        if not Path(args.test_data).exists():
-            print(f"✗ Error: Test data not found: {args.test_data}")
+        if not Path(test_path).exists():
+            print(f"✗ Error: Test data not found: {test_path}")
             sys.exit(1)
 
     # Execute requested operation
     try:
         if args.prepare:
-            run_prepare_only(args.train_data, args.test_data)
+            run_prepare_only(config)
         elif args.train:
-            run_train_only(args.model, args.optimize, args.trials)
+            run_train_only(config)
         elif args.evaluate:
             run_evaluate_only()
         elif args.predict:
             run_predict_demo()
         else:
             # Run full pipeline
-            run_full_pipeline(
-                train_path=args.train_data,
-                test_path=args.test_data,
-                optimize=args.optimize,
-                n_trials=args.trials,
-                model_type=args.model,
-            )
+            run_full_pipeline(config)
 
     except KeyboardInterrupt:
         print("\n\n✗ Pipeline interrupted by user")

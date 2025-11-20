@@ -1,0 +1,90 @@
+# ============================================================================
+# Production Configuration
+# ============================================================================
+# Optimized configuration for production deployment
+
+project:
+  name: "Customer Churn Prediction - Production"
+  version: "1.0.0"
+  description: "Production configuration with full optimization"
+
+data:
+  train_path: "data/churn-bigml-80.csv"
+  test_path: "data/churn-bigml-20.csv"
+  target_column: "Churn"
+  
+  encoding:
+    binary_columns:
+      - "International plan"
+      - "Voice mail plan"
+    onehot_columns:
+      - "State"
+      - "Area code"
+  
+  outlier_columns:
+    - "Account length"
+    - "Total day minutes"
+    - "Total day calls"
+    - "Total day charge"
+    - "Total eve minutes"
+    - "Total eve calls"
+    - "Total eve charge"
+    - "Total night minutes"
+    - "Total night calls"
+    - "Total night charge"
+    - "Total intl minutes"
+    - "Total intl calls"
+    - "Total intl charge"
+
+model:
+  type: "xgboost"
+  random_state: 42
+  
+  # Full optimization for production
+  optimization:
+    enabled: true
+    n_trials: 100  # More trials for better results
+    cv_folds: 10   # More folds for robust validation
+    scoring: "roc_auc"
+  
+  default_params:
+    xgboost:
+      n_estimators: 300
+      learning_rate: 0.05
+      max_depth: 8
+      subsample: 0.9
+      colsample_bytree: 0.9
+
+preprocessing:
+  balance_method: "smoteenn"
+  scaler: "standard"
+  correlation_threshold: 0.95
+  zscore_threshold: 3.0
+  iqr_multiplier: 1.5
+
+persistence:
+  models_dir: "models/prod"
+  version_format: "v{version}"
+  save_artifacts: true
+  include_metadata: true
+
+logging:
+  level: "INFO"
+  format: "detailed"
+  save_logs: true
+  log_dir: "logs"
+
+evaluation:
+  cv_folds: 10
+  cv_scoring: "roc_auc"
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "roc_auc"
+    - "log_loss"
+    - "cohen_kappa"
+    - "matthews_corrcoef"
+  top_features: 20
+  plot_results: true

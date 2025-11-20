@@ -4,30 +4,41 @@
 
 ```
 Atelier2/
-├── churn-bigml-80.csv                          # Training dataset (2,668 records)
-├── churn-bigml-20.csv                          # Test dataset (669 records)
-├── Fedi.ipynb                                  # Structured notebook (19 blocks)
-├── model_pipeline.py                           # Core ML functions (951 lines)
-├── main.py                                     # Pipeline orchestration (422 lines)
-├── ML_Pipeline_Function_Specifications.md      # Detailed function specs
-├── requirements.txt                            # Python dependencies
-├── README.md                                   # This file
-├── .gitignore                                  # Git ignore rules
+├── config/                                     # Configuration files
+│   ├── config.yaml                            # Default configuration
+│   ├── config.dev.yaml                        # Development config
+│   └── config.prod.yaml                       # Production config
+├── data/                                       # Datasets directory
+│   ├── churn-bigml-80.csv                     # Training dataset (2,668 records)
+│   ├── churn-bigml-20.csv                     # Test dataset (669 records)
+│   └── README.md                              # Data documentation
+├── models/                                     # Trained models directory
+│   └── v1.0/                                  # Model version 1.0
+├── config_loader.py                           # Configuration management module
+├── model_pipeline.py                          # Core ML functions (1,056 lines)
+├── main.py                                    # Pipeline orchestration (426 lines)
+├── Makefile                                   # Build automation
+├── requirements.txt                           # Python dependencies
+├── CONFIGURATION.md                           # Configuration guide
+├── ML_Pipeline_Function_Specifications.md     # Detailed function specs
+└── README.md                                  # This file
 ```
 
 ## 📝 Project Overview
 
-**Atelier 2** contains a complete, production-ready machine learning pipeline for customer churn prediction in telecommunications. The project transforms a monolithic Jupyter notebook (Atelier 1) into modular, reusable Python functions with comprehensive documentation.
+**Atelier 2** contains a complete, production-ready machine learning pipeline for customer churn prediction in telecommunications. The project features a **configuration-driven architecture** that eliminates hardcoded values and makes the pipeline truly reusable.
 
 ### Key Features
+- ✅ **Configuration-Driven** - No hardcoded dataset paths (NEW!)
 - ✅ **23 modular functions** for the complete ML lifecycle
+- ✅ **Environment-specific configs** (dev, prod)
 - ✅ **Hyperparameter optimization** with Optuna (50 trials)
 - ✅ **Class balancing** using SMOTEENN
 - ✅ **Advanced outlier detection** (Anderson-Darling + Z-score/IQR)
 - ✅ **Feature engineering** (Total calls, Total charge, CS call rate)
 - ✅ **Model versioning** with metadata tracking
-- ✅ **CLI interface** with argparse
-- ✅ **Production-ready** code (PEP8, type hints, docstrings)
+- ✅ **CLI interface** with configuration overrides
+- ✅ **MLOps best practices** - Reusable, scalable, production-ready
 
 ## 🚀 Quick Start
 
@@ -40,17 +51,39 @@ pip install -r requirements.txt
 ### 2. Run Full Pipeline
 
 ```bash
-# Full pipeline with hyperparameter optimization
+# Run with default configuration
 python main.py
 
-# Fast mode (no optimization)
-python main.py --no-optimize
+# Use development config (fast, no optimization)
+python main.py --config config/config.dev.yaml
 
-# Use Random Forest
-python main.py --model random_forest
+# Use production config (full optimization)
+python main.py --config config/config.prod.yaml
+
+# Override specific settings
+python main.py --config config/config.yaml --model random_forest --no-optimize
 ```
 
-### 3. Individual Steps
+### 3. Using Makefile
+
+```bash
+# Default pipeline
+make train
+
+# Development mode (fast)
+make train-dev
+
+# Production mode (optimized)
+make train-prod
+
+# Only prepare data
+make data
+
+# See all available commands
+make help
+```
+
+### 4. Individual Steps
 
 ```bash
 # Only prepare data
@@ -63,6 +96,43 @@ python main.py --evaluate
 python main.py --predict
 ```
 
+## 🔧 Configuration System
+
+The pipeline uses YAML configuration files for maximum flexibility:
+
+### Configuration Files
+- **`config/config.yaml`** - Default settings (50 trials, standard optimization)
+- **`config/config.dev.yaml`** - Development (fast iteration, no optimization)
+- **`config/config.prod.yaml`** - Production (100 trials, full validation)
+
+### Example Configuration
+```yaml
+data:
+  train_path: "data/churn-bigml-80.csv"
+  test_path: "data/churn-bigml-20.csv"
+  target_column: "Churn"
+
+model:
+  type: "xgboost"
+  optimization:
+    enabled: true
+    n_trials: 50
+```
+
+### CLI Overrides
+```bash
+# Override data paths
+python main.py --train-data data/new_train.csv --test-data data/new_test.csv
+
+# Override model type
+python main.py --config config/config.yaml --model random_forest
+
+# Disable optimization
+python main.py --no-optimize
+```
+
+**For detailed configuration documentation, see [`CONFIGURATION.md`](CONFIGURATION.md)**
+
 ## 📦 Requirements
 
 ```
@@ -73,6 +143,7 @@ xgboost>=1.5.0
 imbalanced-learn>=0.8.0
 scipy>=1.7.0
 optuna>=2.10.0
+pyyaml>=6.0
 ```
 
 ## 🔧 Module Functions
@@ -182,6 +253,14 @@ print(f"Best params: {best_params}")
 
 ## 🎯 Key Features
 
+### Configuration System (NEW!)
+- ✅ **YAML-based configuration** - No hardcoded values
+- ✅ **Environment-specific configs** - Dev, prod configurations
+- ✅ **CLI overrides** - Override any config value from command line
+- ✅ **Path resolution** - Automatic absolute path handling
+- ✅ **Validation** - Configuration validation on load
+- ✅ **Reusable** - Same code works with any dataset
+
 ### Data Pipeline
 - ✅ Automatic data validation
 - ✅ Missing value detection
@@ -210,6 +289,7 @@ print(f"Best params: {best_params}")
 - ✅ Feature Importance Analysis
 
 ### Production-Ready
+- ✅ **Configuration-driven architecture** (NEW!)
 - ✅ Model versioning
 - ✅ Artifact persistence (pickle)
 - ✅ Metadata tracking (JSON)
@@ -217,6 +297,7 @@ print(f"Best params: {best_params}")
 - ✅ Deterministic outputs (RANDOM_STATE=42)
 - ✅ Google-style docstrings
 - ✅ PEP8 compliant
+- ✅ MLOps best practices
 
 ## 📊 Expected Results
 
@@ -261,26 +342,59 @@ results = predict_churn(new_data, artifacts)
 
 ## 🐛 Troubleshooting
 
-### Issue: FileNotFoundError
+### Issue: Configuration file not found
 ```bash
-# Ensure CSV files are in current directory
-ls churn-bigml-*.csv
+# Ensure config directory exists
+ls config/
 
-# Or specify paths
-python main.py --train-data churn-bigml-80.csv --test-data churn-bigml-20.csv
+# Use default config
+python main.py --config config/config.yaml
+```
+
+### Issue: Data files not found
+```bash
+# Ensure data files are in data/ directory
+ls data/
+
+# Or specify custom paths
+python main.py --train-data path/to/train.csv --test-data path/to/test.csv
 ```
 
 ### Issue: Import errors
 ```bash
-# Reinstall dependencies
+# Reinstall all dependencies including PyYAML
 pip install -r requirements.txt --upgrade
 ```
 
 ### Issue: Memory errors
 ```bash
-# Reduce optimization trials
+# Use development config (reduced complexity)
+python main.py --config config/config.dev.yaml
+
+# Or reduce optimization trials
 python main.py --trials 20
 ```
+
+## 🆕 What's New in This Version
+
+### Configuration System Refactor (MLOps Best Practice)
+- **Problem Solved**: Eliminated all hardcoded dataset paths that made code non-reusable
+- **Solution**: YAML-based configuration system with environment-specific configs
+- **Benefits**:
+  - ✅ Code is now truly reusable with any dataset
+  - ✅ Easy switching between dev/prod environments
+  - ✅ Configuration versioning alongside code
+  - ✅ CLI overrides for flexibility
+  - ✅ Follows industry MLOps standards
+
+### File Organization
+- **New**: `config/` directory with YAML configuration files
+- **New**: `data/` directory for organized dataset storage
+- **New**: `config_loader.py` module for configuration management
+- **New**: `CONFIGURATION.md` comprehensive configuration guide
+- **Updated**: All functions now accept explicit parameters (no defaults)
+- **Updated**: `main.py` now configuration-driven
+- **Updated**: `Makefile` with config-aware targets
 
 ## 🚀 GitHub Preparation
 
