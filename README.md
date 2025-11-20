@@ -1,0 +1,365 @@
+# Customer Churn Prediction - Production ML Pipeline
+
+## 📁 Project Structure
+
+```
+Atelier2/
+├── churn-bigml-80.csv                          # Training dataset (2,668 records)
+├── churn-bigml-20.csv                          # Test dataset (669 records)
+├── Fedi.ipynb                                  # Structured notebook (19 blocks)
+├── model_pipeline.py                           # Core ML functions (951 lines)
+├── main.py                                     # Pipeline orchestration (422 lines)
+├── ML_Pipeline_Function_Specifications.md      # Detailed function specs
+├── requirements.txt                            # Python dependencies
+├── README.md                                   # This file
+├── .gitignore                                  # Git ignore rules
+```
+
+## 📝 Project Overview
+
+**Atelier 2** contains a complete, production-ready machine learning pipeline for customer churn prediction in telecommunications. The project transforms a monolithic Jupyter notebook (Atelier 1) into modular, reusable Python functions with comprehensive documentation.
+
+### Key Features
+- ✅ **23 modular functions** for the complete ML lifecycle
+- ✅ **Hyperparameter optimization** with Optuna (50 trials)
+- ✅ **Class balancing** using SMOTEENN
+- ✅ **Advanced outlier detection** (Anderson-Darling + Z-score/IQR)
+- ✅ **Feature engineering** (Total calls, Total charge, CS call rate)
+- ✅ **Model versioning** with metadata tracking
+- ✅ **CLI interface** with argparse
+- ✅ **Production-ready** code (PEP8, type hints, docstrings)
+
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Run Full Pipeline
+
+```bash
+# Full pipeline with hyperparameter optimization
+python main.py
+
+# Fast mode (no optimization)
+python main.py --no-optimize
+
+# Use Random Forest
+python main.py --model random_forest
+```
+
+### 3. Individual Steps
+
+```bash
+# Only prepare data
+python main.py --prepare
+
+# Only evaluate saved model
+python main.py --evaluate
+
+# Run inference demo
+python main.py --predict
+```
+
+## 📦 Requirements
+
+```
+pandas>=1.3.0
+numpy>=1.21.0
+scikit-learn>=1.0.0
+xgboost>=1.5.0
+imbalanced-learn>=0.8.0
+scipy>=1.7.0
+optuna>=2.10.0
+```
+
+## 🔧 Module Functions
+
+### `model_pipeline.py` - Core Functions
+
+#### Data Loading & Validation
+- `load_data()` - Load training and test CSV files
+- `validate_data_quality()` - Check data quality metrics
+
+#### Preprocessing
+- `encode_categorical_features()` - Binary and one-hot encoding
+- `detect_normality()` - Anderson-Darling normality test
+- `remove_outliers_zscore()` - Remove outliers (normal distributions)
+- `remove_outliers_iqr()` - Remove outliers (non-normal distributions)
+
+#### Feature Engineering
+- `engineer_features()` - Create derived features
+- `select_features_correlation()` - Remove correlated features
+
+#### Data Preparation
+- `prepare_data_for_modeling()` - Split features and target
+- `balance_dataset()` - SMOTEENN resampling
+- `scale_features()` - StandardScaler normalization
+
+#### Model Training
+- `train_model()` - Train classification model
+- `optimize_hyperparameters()` - Optuna hyperparameter tuning
+
+#### Evaluation
+- `evaluate_model()` - Comprehensive metrics
+- `cross_validate_model()` - K-fold cross-validation
+- `extract_feature_importance()` - Feature ranking
+
+#### Persistence
+- `save_model()` - Save model and artifacts
+- `load_model()` - Load saved model
+
+#### Inference
+- `predict_churn()` - Make predictions on new data
+- `prepare_data()` - Complete preprocessing pipeline
+
+## 💡 Usage Examples
+
+### Full Pipeline in Code
+
+```python
+from model_pipeline import prepare_data, train_model, evaluate_model, save_model
+
+# Prepare data
+X_train, y_train, X_test, y_test, artifacts, features = prepare_data()
+
+# Train model
+model = train_model(X_train, y_train, model_type='xgboost')
+
+# Evaluate
+metrics = evaluate_model(model, X_test, y_test)
+
+# Save
+save_model(model, artifacts['scaler'], artifacts['encoders'], 
+           features, metadata={'metrics': metrics})
+```
+
+### Inference on New Data
+
+```python
+from model_pipeline import load_model, predict_churn
+
+# Load saved model
+artifacts = load_model(model_dir='./models', version='v1.0')
+
+# New customer data
+customer = {
+    'State': 'CA',
+    'Account length': 100,
+    'Area code': 415,
+    'International plan': 'No',
+    'Voice mail plan': 'Yes',
+    # ... other features
+}
+
+# Predict
+results = predict_churn(customer, artifacts)
+print(f"Churn probability: {results['probabilities'][0]:.2%}")
+```
+
+### Custom Training
+
+```python
+from model_pipeline import prepare_data, optimize_hyperparameters
+
+# Prepare data
+X_train, y_train, X_test, y_test, artifacts, features = prepare_data()
+
+# Optimize with 100 trials
+model, best_params = optimize_hyperparameters(
+    model_type='xgboost',
+    X_train=X_train,
+    y_train=y_train,
+    X_test=X_test,
+    y_test=y_test,
+    n_trials=100
+)
+
+print(f"Best params: {best_params}")
+```
+
+## 🎯 Key Features
+
+### Data Pipeline
+- ✅ Automatic data validation
+- ✅ Missing value detection
+- ✅ Duplicate removal
+- ✅ Statistical outlier detection (Anderson-Darling test)
+- ✅ Z-score and IQR outlier removal
+
+### Feature Engineering
+- ✅ Binary encoding (Yes/No → 0/1)
+- ✅ One-hot encoding (State, Area code)
+- ✅ Derived features (Total calls, Total charge, CS call rate)
+- ✅ Correlation-based feature selection
+- ✅ StandardScaler normalization
+
+### Model Training
+- ✅ Multiple algorithms (XGBoost, Random Forest, Gradient Boosting)
+- ✅ SMOTEENN class balancing
+- ✅ Optuna hyperparameter optimization
+- ✅ 5-fold cross-validation
+
+### Evaluation
+- ✅ ROC AUC, Accuracy, Log Loss
+- ✅ Cohen's Kappa, Matthews Correlation
+- ✅ Confusion Matrix
+- ✅ Classification Report
+- ✅ Feature Importance Analysis
+
+### Production-Ready
+- ✅ Model versioning
+- ✅ Artifact persistence (pickle)
+- ✅ Metadata tracking (JSON)
+- ✅ Error handling
+- ✅ Deterministic outputs (RANDOM_STATE=42)
+- ✅ Google-style docstrings
+- ✅ PEP8 compliant
+
+## 📊 Expected Results
+
+### Model Performance (XGBoost with Optimization)
+- **ROC AUC**: ~0.93
+- **Accuracy**: ~0.95
+- **CV ROC AUC**: ~0.92 ± 0.02
+
+### Top Features
+1. Total charge
+2. Customer service calls
+3. International plan
+4. Total day charge
+5. Total eve charge
+
+## 🔒 Best Practices
+
+### For Development
+```bash
+# Use fast mode for iteration
+python main.py --no-optimize --model random_forest
+
+# Quick evaluation
+python main.py --evaluate
+```
+
+### For Production
+```bash
+# Full optimization
+python main.py --optimize --trials 100 --model xgboost
+
+# Version management
+# Models saved with timestamps in metadata_v1.0.json
+```
+
+### For Deployment
+```python
+# Always use load_model() to ensure consistent preprocessing
+artifacts = load_model(model_dir='./models', version='v1.0')
+results = predict_churn(new_data, artifacts)
+```
+
+## 🐛 Troubleshooting
+
+### Issue: FileNotFoundError
+```bash
+# Ensure CSV files are in current directory
+ls churn-bigml-*.csv
+
+# Or specify paths
+python main.py --train-data churn-bigml-80.csv --test-data churn-bigml-20.csv
+```
+
+### Issue: Import errors
+```bash
+# Reinstall dependencies
+pip install -r requirements.txt --upgrade
+```
+
+### Issue: Memory errors
+```bash
+# Reduce optimization trials
+python main.py --trials 20
+```
+
+## 🚀 GitHub Preparation
+
+### Project Status: ✅ Ready for GitHub
+
+All files are organized and production-ready:
+- ✅ Clean Python modules (`model_pipeline.py`, `main.py`)
+- ✅ Complete documentation (`README.md`, `ML_Pipeline_Function_Specifications.md`)
+- ✅ Dependencies listed (`requirements.txt`)
+- ✅ `.gitignore` configured
+- ✅ Data files included (ensure license allows data sharing)
+- ✅ Structured notebook for reference
+
+### Pre-Push Checklist
+
+```bash
+# 1. Navigate to Atelier2
+cd "c:\Users\Fedih\Downloads\Projet ML\Atelier2"
+
+# 2. Initialize git repository (if not done)
+git init
+
+# 3. Add all files
+git add .
+
+# 4. Check what will be committed
+git status
+
+# 5. Create first commit
+git commit -m "feat: Add Atelier2 - Production ML pipeline for churn prediction
+
+- Complete modular pipeline with 23 functions
+- Hyperparameter optimization with Optuna
+- CLI interface with argparse
+- Comprehensive documentation and specifications
+- PEP8 compliant, type-hinted code"
+
+# 6. Create GitHub repository and push
+git remote add origin https://github.com/YOUR_USERNAME/REPO_NAME.git
+git branch -M main
+git push -u origin main
+```
+
+### Recommended Repository Name
+- `churn-prediction-pipeline`
+- `ml-churn-atelier2`
+- `telecom-churn-ml`
+
+### Suggested GitHub Repository Description
+> Production-ready ML pipeline for customer churn prediction in telecommunications. Features modular Python functions, Optuna hyperparameter optimization, SMOTEENN balancing, and comprehensive evaluation (ROC AUC ~0.93). Built with XGBoost, scikit-learn, and FastAPI-ready architecture.
+
+### Suggested Topics/Tags
+`machine-learning` `churn-prediction` `xgboost` `scikit-learn` `optuna` `telecommunications` `python` `data-science` `mlops` `production-ml`
+
+## 📊 Expected Results
+
+### Model Performance (XGBoost with Optimization)
+- **ROC AUC**: ~0.93
+- **Accuracy**: ~0.95
+- **CV ROC AUC**: ~0.92 ± 0.02
+- **Training time**: ~2-5 minutes (with 50 trials)
+
+### Top Features
+1. Total charge
+2. Customer service calls
+3. International plan
+4. Total day charge
+5. Total eve charge
+
+## 📝 License
+
+MIT License
+
+## 👥 Author
+
+**Fedi Hmida**  
+Data Scientist & ML Engineer  
+November 2025
+
+---
+
+**Note**: This project is part of a machine learning workshop series (Atelier 2) focusing on transforming exploratory notebooks into production-ready pipelines. 
