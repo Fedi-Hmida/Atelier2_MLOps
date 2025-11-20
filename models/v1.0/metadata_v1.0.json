@@ -1,0 +1,27 @@
+{
+  "model_type": "xgboost",
+  "best_params": {
+    "n_estimators": 250,
+    "learning_rate": 0.05535475354167878,
+    "max_depth": 8,
+    "min_child_weight": 1,
+    "subsample": 0.7498991922392534,
+    "colsample_bytree": 0.9880297435720188,
+    "gamma": 3.3884359673774287
+  },
+  "test_metrics": {
+    "accuracy": 0.9685157421289355,
+    "roc_auc": 0.9214942951785057,
+    "log_loss": 0.15361924623699386,
+    "cohen_kappa": 0.8658166246754864,
+    "matthews_corrcoef": 0.8672518450717625
+  },
+  "cv_results": {
+    "mean_score": 0.9710350037471178,
+    "std_score": 0.013525116832756959,
+    "min_score": 0.9500331785003318,
+    "max_score": 0.9871794871794872
+  },
+  "version": "v1.0",
+  "saved_at": "2025-11-20T10:09:00.130153"
+}
