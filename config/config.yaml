@@ -103,6 +103,36 @@ logging:
   save_logs: false
   log_dir: "logs"
 
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  reload: true  # Auto-reload for development
+  log_level: "info"
+  
+  # CORS settings
+  cors:
+    enabled: true
+    allow_origins:
+      - "*"  # In production, specify exact origins
+    allow_methods:
+      - "*"
+    allow_headers:
+      - "*"
+    allow_credentials: true
+  
+  # Rate limiting (requests per minute)
+  rate_limit:
+    enabled: false
+    max_requests: 100
+    window_seconds: 60
+  
+  # Batch processing limits
+  batch:
+    max_customers: 1000
+    timeout_seconds: 30
+
 # Evaluation settings
 evaluation:
   cv_folds: 5

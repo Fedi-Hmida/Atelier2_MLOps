@@ -150,5 +150,34 @@ notebook:
 	@.\$(ENV_NAME)\Scripts\activate && jupyter notebook
 
 # ============================================================================
+# 9. API Server (FastAPI)
+# ============================================================================
+.PHONY: api api-dev api-prod api-install test-api
+
+api-install:
+	@echo "Installation des dépendances FastAPI..."
+	@$(PYTHON) -m pip install fastapi uvicorn[standard] pydantic httpx python-multipart gunicorn
+
+api:
+	@echo "Démarrage du serveur API (mode développement)..."
+	@$(PYTHON) -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+api-dev:
+	@echo "Démarrage du serveur API (mode développement avec logs détaillés)..."
+	@$(PYTHON) -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+
+api-prod:
+	@echo "Démarrage du serveur API (mode production)..."
+	@$(PYTHON) -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+api-gunicorn:
+	@echo "Démarrage du serveur API avec Gunicorn..."
+	@gunicorn api.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+
+test-api:
+	@echo "Test de l'API..."
+	@$(PYTHON) tests/test_api.py
+
+# ============================================================================
 # END OF MAKEFILE
 # ============================================================================

@@ -1,0 +1,124 @@
+# Docker Compose Configuration for Customer Churn Prediction API
+# Orchestrates the API service with monitoring and optional database
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Main API Service
+  # ============================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: churn-prediction-api
+    image: churn-prediction-api:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount models for easy updates without rebuilding
+      - ./models:/app/models:ro
+      # Mount config for dynamic configuration
+      - ./config:/app/config:ro
+      # Mount logs for persistence
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ML_CONFIG_PATH=config/config.yaml
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - churn-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+  # ============================================================================
+  # Nginx Reverse Proxy (Optional)
+  # ============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: churn-api-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro  # For HTTPS certificates
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - churn-network
+    profiles:
+      - production  # Only start with --profile production
+
+  # ============================================================================
+  # Prometheus Monitoring (Optional)
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: churn-api-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+    networks:
+      - churn-network
+    profiles:
+      - monitoring
+
+  # ============================================================================
+  # Grafana Dashboard (Optional)
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: churn-api-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - churn-network
+    profiles:
+      - monitoring
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  churn-network:
+    driver: bridge
+    name: churn-prediction-network
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  prometheus-data:
+    name: churn-prometheus-data
+  grafana-data:
+    name: churn-grafana-data
